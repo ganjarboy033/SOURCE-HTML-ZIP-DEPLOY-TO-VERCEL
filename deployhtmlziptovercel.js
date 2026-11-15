@@ -1,7 +1,3 @@
-
-#!/usr/bin/env node
-'use strict';
-
 /**
  * ============================================================
  *                  XIYU CODEX - DEPLOY HTML ZIP
