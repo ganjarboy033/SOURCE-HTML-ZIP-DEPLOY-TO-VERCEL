@@ -1,3 +1,4 @@
+
 /**
  * ============================================================
  *                  XIYU CODEX - DEPLOY HTML ZIP
@@ -6,7 +7,7 @@
  * PROJECT       : DEPLOY HTML ZIP
  * DEVELOPER     : XIYU CODEX
  * CREATED BY    : XIYU CODEX
- * VERSION       : 1.0.0
+ * VERSION       : 1.1.0
  * LICENSE       : Copyright Protected
  *
  * COPYRIGHT (C) 2026 XIYU CODEX
@@ -16,52 +17,50 @@
  * DESCRIPTION
  * ------------------------------------------------------------
  *
- * DEPLOY HTML ZIP adalah sebuah tool berbasis Node.js yang
- * dirancang untuk mempermudah proses deployment website
- * statis ke platform Vercel secara langsung.
+ * DEPLOY HTML ZIP adalah tool Node.js untuk melakukan
+ * deployment website statis ke platform Vercel.
  *
- * Tool ini memungkinkan pengguna untuk mengunggah website
- * dalam bentuk folder, file HTML, maupun arsip ZIP tanpa
- * harus melakukan deployment secara manual melalui dashboard
- * Vercel.
+ * Mendukung input:
+ * - Folder website.
+ * - File HTML.
+ * - Arsip ZIP.
  *
  * ------------------------------------------------------------
  * MAIN FEATURES
  * ------------------------------------------------------------
  *
- * - Deploy website dari folder lokal.
- * - Deploy website dari file HTML.
- * - Deploy website dari arsip ZIP.
- * - Ekstraksi dan normalisasi struktur direktori ZIP.
- * - Validasi jumlah file dan batas ukuran file.
- * - Otomatisasi upload file melalui Vercel REST API.
+ * - Deploy folder website.
+ * - Deploy file HTML.
+ * - Deploy arsip ZIP.
+ * - Ekstraksi ZIP otomatis.
+ * - Normalisasi struktur direktori.
+ * - Validasi file dan ukuran upload.
+ * - Upload melalui Vercel REST API.
  * - Validasi Vercel Access Token.
- * - Mendukung deployment ke akun personal maupun Team.
- * - Membuat deployment dan memantau statusnya.
- * - Mendukung deployment Production.
+ * - Mendukung akun personal dan Team.
+ * - Monitoring status deployment.
+ * - Mendukung Production Deployment.
  *
  * ------------------------------------------------------------
- * PURPOSE
+ * UPLOAD LIMIT
  * ------------------------------------------------------------
  *
- * Project ini dibuat untuk menyediakan alternatif tool
- * deployment website statis yang sederhana, praktis, dan
- * dapat dijalankan melalui terminal menggunakan Node.js.
+ * ZIP FILE       : 150 MiB
+ * HTML FILE      : 150 MiB
+ * INDIVIDUAL FILE: 150 MiB
+ * TOTAL FILES    : 150 MiB
+ * MAX FILE COUNT : 120
  *
- * Pengguna dapat melakukan deployment menggunakan akun
- * Vercel dan Access Token milik mereka sendiri.
- *
- * Tool ini berkomunikasi langsung dengan Vercel REST API
- * dan tidak bergantung pada server pihak ketiga untuk
- * memproses token maupun mengelola deployment.
+ * CATATAN:
+ * Batas lokal tidak mengubah batas maksimum Vercel API.
  *
  * ------------------------------------------------------------
  * REQUIREMENTS
  * ------------------------------------------------------------
  *
- * - Node.js 18 atau lebih baru.
- * - NPM.
- * - Vercel Access Token.
+ * - Node.js 18+
+ * - NPM
+ * - Vercel Access Token
  * - Package: jszip
  *
  * INSTALLATION
@@ -76,6 +75,8 @@
  *
  * node deployhtmlzip.js ./website nama-project
  *
+ * node deployhtmlzip.js ./index.html nama-project
+ *
  * node deployhtmlzip.js ./website.zip nama-project --production
  *
  * ENVIRONMENT VARIABLES
@@ -88,23 +89,14 @@
  * SECURITY NOTICE
  * ------------------------------------------------------------
  *
- * Pengguna bertanggung jawab menjaga kerahasiaan Vercel
- * Access Token masing-masing.
+ * Pengguna bertanggung jawab menjaga kerahasiaan token.
  *
- * Jangan membagikan token ke publik atau memasukkannya
- * ke dalam repository yang dapat diakses umum.
- *
- * ------------------------------------------------------------
- * COPYRIGHT NOTICE
- * ------------------------------------------------------------
- *
- * Copyright (C) 2026 XIYU CODEX.
- * All Rights Reserved.
+ * Jangan membagikan Vercel Access Token kepada publik.
  *
  * ============================================================
  */
 
-
+'use strict';
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -114,16 +106,29 @@ const JSZip = require('jszip');
 
 const API = 'https://api.vercel.com';
 
+const MiB = 1024 * 1024;
+
 const LIMITS = {
   files: 120,
-  fileBytes: 4 * 1024 * 1024,
-  totalBytes: Math.floor(6.5 * 1024 * 1024),
-  zipBytes: 8 * 1024 * 1024,
-  faviconBytes: 1024 * 1024
+
+  // Maksimal ukuran individual file.
+  fileBytes: 150 * MiB,
+
+  // Maksimal akumulasi seluruh file.
+  totalBytes: 150 * MiB,
+
+  // Maksimal arsip ZIP.
+  zipBytes: 150 * MiB,
+
+  faviconBytes: 1 * MiB
 };
 
 const SKIP_PATH =
   /(^|\/)(__MACOSX\/|\.git\/|\.DS_Store$|\._|Thumbs\.db$)/i;
+
+// ============================================================
+// PROJECT NAME
+// ============================================================
 
 function normalizeProjectName(input) {
   let name = String(input || '')
@@ -147,11 +152,19 @@ function normalizeProjectName(input) {
   return name;
 }
 
+// ============================================================
+// FILE PATH
+// ============================================================
+
 function cleanZipPath(input) {
   return String(input)
     .replace(/\\/g, '/')
     .split('/')
-    .filter(part => part && part !== '.' && part !== '..')
+    .filter(part =>
+      part &&
+      part !== '.' &&
+      part !== '..'
+    )
     .map(part =>
       part
         .replace(/[^\w.\- ]/g, '_')
@@ -161,10 +174,37 @@ function cleanZipPath(input) {
     .join('/');
 }
 
+function assertSafePath(filePath) {
+  const normalized = String(filePath)
+    .replace(/\\/g, '/');
+
+  if (
+    !normalized ||
+    normalized.startsWith('/') ||
+    /^[a-z]:/i.test(normalized) ||
+    normalized.split('/').some(
+      p => p === '..' || p === '.'
+    )
+  ) {
+    throw new Error(
+      `Path file tidak aman: ${filePath}`
+    );
+  }
+
+  return normalized;
+}
+
+// ============================================================
+// STRIP COMMON ROOT
+// ============================================================
+
 function stripCommonRoot(files) {
   if (!files.length) return files;
 
-  const parts = files.map(file => file.path.split('/'));
+  const parts = files.map(
+    file => file.path.split('/')
+  );
+
   const first = parts[0][0];
 
   const oneTopFolder =
@@ -174,24 +214,37 @@ function stripCommonRoot(files) {
 
   if (oneTopFolder) {
     for (const file of files) {
-      file.path = file.path.split('/').slice(1).join('/');
+      file.path = file.path
+        .split('/')
+        .slice(1)
+        .join('/');
     }
   }
 
-  if (!files.some(f => f.path.toLowerCase() === 'index.html')) {
+  if (
+    !files.some(
+      f => f.path.toLowerCase() === 'index.html'
+    )
+  ) {
     const indexes = files.filter(f =>
       /(^|\/)index\.html$/i.test(f.path)
     );
 
     if (indexes.length) {
-      const parent = path.posix.dirname(indexes[0].path);
+      const parent = path.posix.dirname(
+        indexes[0].path
+      );
 
       if (
         parent !== '.' &&
-        files.every(f => f.path.startsWith(parent + '/'))
+        files.every(
+          f => f.path.startsWith(parent + '/')
+        )
       ) {
         for (const file of files) {
-          file.path = file.path.slice(parent.length + 1);
+          file.path = file.path.slice(
+            parent.length + 1
+          );
         }
       }
     }
@@ -200,29 +253,21 @@ function stripCommonRoot(files) {
   return files;
 }
 
-function assertSafePath(filePath) {
-  const normalized = String(filePath).replace(/\\/g, '/');
-
-  if (
-    !normalized ||
-    normalized.startsWith('/') ||
-    /^[a-z]:/i.test(normalized) ||
-    normalized.split('/').some(p => p === '..' || p === '.')
-  ) {
-    throw new Error(`Path file tidak aman: ${filePath}`);
-  }
-
-  return normalized;
-}
+// ============================================================
+// READ DIRECTORY
+// ============================================================
 
 async function readDirectory(dir) {
   const root = path.resolve(dir);
   const result = [];
 
+  let total = 0;
+
   async function walk(current) {
-    const entries = await fs.promises.readdir(current, {
-      withFileTypes: true
-    });
+    const entries = await fs.promises.readdir(
+      current,
+      { withFileTypes: true }
+    );
 
     for (const ent of entries) {
       if (
@@ -238,49 +283,112 @@ async function readDirectory(dir) {
         continue;
       }
 
-      const full = path.join(current, ent.name);
+      const full = path.join(
+        current,
+        ent.name
+      );
 
       if (ent.isDirectory()) {
         await walk(full);
-      } else if (ent.isFile()) {
-        const rel = path
-          .relative(root, full)
-          .split(path.sep)
-          .join('/');
-
-        result.push({
-          path: assertSafePath(rel),
-          data: await fs.promises.readFile(full)
-        });
+        continue;
       }
+
+      if (!ent.isFile()) continue;
+
+      const stat = await fs.promises.stat(full);
+
+      if (stat.size > LIMITS.fileBytes) {
+        throw new Error(
+          `File ${ent.name} melebihi 150 MiB.`
+        );
+      }
+
+      total += stat.size;
+
+      if (total > LIMITS.totalBytes) {
+        throw new Error(
+          'Total ukuran folder melebihi 150 MiB.'
+        );
+      }
+
+      if (result.length >= LIMITS.files) {
+        throw new Error(
+          `Maksimal ${LIMITS.files} file.`
+        );
+      }
+
+      const rel = path
+        .relative(root, full)
+        .split(path.sep)
+        .join('/');
+
+      result.push({
+        path: assertSafePath(rel),
+        data: await fs.promises.readFile(full)
+      });
     }
   }
 
   await walk(root);
+
   return result;
 }
+
+// ============================================================
+// READ ZIP
+// ============================================================
 
 async function readZip(zipPath) {
   const stat = await fs.promises.stat(zipPath);
 
   if (stat.size > LIMITS.zipBytes) {
-    throw new Error('Ukuran ZIP melebihi 8 MiB.');
+    throw new Error(
+      'Ukuran ZIP melebihi 150 MiB.'
+    );
   }
 
-  const zip = await JSZip.loadAsync(
-    await fs.promises.readFile(zipPath)
+  const buffer = await fs.promises.readFile(
+    zipPath
   );
+
+  const zip = await JSZip.loadAsync(buffer);
 
   const result = [];
 
-  for (const [rawName, entry] of Object.entries(zip.files)) {
+  let total = 0;
+
+  for (const [rawName, entry] of Object.entries(
+    zip.files
+  )) {
     if (entry.dir) continue;
 
     const clean = cleanZipPath(rawName);
 
-    if (!clean || SKIP_PATH.test(clean)) continue;
+    if (!clean || SKIP_PATH.test(clean)) {
+      continue;
+    }
+
+    if (result.length >= LIMITS.files) {
+      throw new Error(
+        `Maksimal ${LIMITS.files} file dalam ZIP.`
+      );
+    }
 
     const data = await entry.async('nodebuffer');
+
+    if (data.length > LIMITS.fileBytes) {
+      throw new Error(
+        `File ${clean} melebihi 150 MiB.`
+      );
+    }
+
+    total += data.length;
+
+    if (total > LIMITS.totalBytes) {
+      throw new Error(
+        'Total hasil ekstraksi ZIP melebihi 150 MiB.'
+      );
+    }
 
     result.push({
       path: assertSafePath(clean),
@@ -291,23 +399,34 @@ async function readZip(zipPath) {
   return stripCommonRoot(result);
 }
 
+// ============================================================
+// VALIDATE FILES
+// ============================================================
+
 function validateFiles(files) {
   if (!files.length) {
-    throw new Error('Tidak ada file yang bisa di-deploy.');
+    throw new Error(
+      'Tidak ada file yang bisa di-deploy.'
+    );
   }
 
   if (files.length > LIMITS.files) {
-    throw new Error(`Maksimal ${LIMITS.files} file.`);
+    throw new Error(
+      `Maksimal ${LIMITS.files} file.`
+    );
   }
 
   let total = 0;
+
   const seen = new Set();
 
   for (const file of files) {
     file.path = assertSafePath(file.path);
 
     if (seen.has(file.path)) {
-      throw new Error(`Path duplikat: ${file.path}`);
+      throw new Error(
+        `Path duplikat: ${file.path}`
+      );
     }
 
     seen.add(file.path);
@@ -315,14 +434,18 @@ function validateFiles(files) {
     const size = file.data.length;
 
     if (size > LIMITS.fileBytes) {
-      throw new Error(`File ${file.path} melebihi 4 MiB.`);
+      throw new Error(
+        `File ${file.path} melebihi 150 MiB.`
+      );
     }
 
     total += size;
   }
 
   if (total > LIMITS.totalBytes) {
-    throw new Error('Total ukuran file melebihi 6.5 MiB.');
+    throw new Error(
+      'Total ukuran file melebihi 150 MiB.'
+    );
   }
 
   return {
@@ -330,6 +453,10 @@ function validateFiles(files) {
     count: files.length
   };
 }
+
+// ============================================================
+// API REQUEST
+// ============================================================
 
 async function request(url, token, options = {}) {
   const response = await fetch(url, {
@@ -371,6 +498,10 @@ async function request(url, token, options = {}) {
   return data;
 }
 
+// ============================================================
+// VERIFY TOKEN
+// ============================================================
+
 async function verifyToken(token) {
   const user = await request(
     `${API}/v2/user`,
@@ -380,13 +511,19 @@ async function verifyToken(token) {
   return user.user || user;
 }
 
+// ============================================================
+// UPLOAD FILE
+// ============================================================
+
 async function uploadOne(token, file) {
   const sha = crypto
     .createHash('sha1')
     .update(file.data)
     .digest('hex');
 
-  const url = new URL(`${API}/v2/files`);
+  const url = new URL(
+    `${API}/v2/files`
+  );
 
   if (process.env.VERCEL_TEAM_ID) {
     url.searchParams.set(
@@ -433,15 +570,22 @@ async function uploadOne(token, file) {
   };
 }
 
+// ============================================================
+// CREATE DEPLOYMENT
+// ============================================================
+
 async function createDeployment(
   token,
   projectName,
   files,
   production
 ) {
-  const url = new URL(`${API}/v13/deployments`);
+  const url = new URL(
+    `${API}/v13/deployments`
+  );
 
   url.searchParams.set('forceNew', '1');
+
   url.searchParams.set(
     'skipAutoDetectionConfirmation',
     '1'
@@ -475,6 +619,10 @@ async function createDeployment(
   });
 }
 
+// ============================================================
+// GET DEPLOYMENT
+// ============================================================
+
 async function getDeployment(token, id) {
   const url = new URL(
     `${API}/v13/deployments/${encodeURIComponent(id)}`
@@ -490,6 +638,10 @@ async function getDeployment(token, id) {
   return request(url, token);
 }
 
+// ============================================================
+// WAIT DEPLOYMENT
+// ============================================================
+
 const sleep = ms =>
   new Promise(resolve => setTimeout(resolve, ms));
 
@@ -502,6 +654,7 @@ async function waitForDeployment(
     options.timeoutMs || 10 * 60 * 1000;
 
   const started = Date.now();
+
   let current = deployment;
 
   while (Date.now() - started < timeoutMs) {
@@ -513,7 +666,9 @@ async function waitForDeployment(
       return current;
     }
 
-    if (['ERROR', 'CANCELED'].includes(state)) {
+    if (
+      ['ERROR', 'CANCELED'].includes(state)
+    ) {
       throw new Error(
         `Deployment ${state}: ${
           current.errorMessage ||
@@ -541,6 +696,10 @@ async function waitForDeployment(
     'Timeout menunggu deployment. Cek dashboard Vercel.'
   );
 }
+
+// ============================================================
+// HIDDEN TOKEN INPUT
+// ============================================================
 
 function askHidden(question) {
   return new Promise((resolve, reject) => {
@@ -577,7 +736,10 @@ function askHidden(question) {
       if (key === '\u0003') {
         cleanup();
         reject(new Error('Dibatalkan.'));
-      } else if (key === '\r' || key === '\n') {
+      } else if (
+        key === '\r' ||
+        key === '\n'
+      ) {
         cleanup();
         stdout.write('\n');
         resolve(value.trim());
@@ -586,13 +748,20 @@ function askHidden(question) {
         key === '\b'
       ) {
         value = value.slice(0, -1);
-      } else if (key >= ' ' && key <= '~') {
+      } else if (
+        key >= ' ' &&
+        key <= '~'
+      ) {
         value += key;
       }
     };
 
     function cleanup() {
-      stdin.removeListener('data', onData);
+      stdin.removeListener(
+        'data',
+        onData
+      );
+
       stdin.setRawMode(false);
       stdin.pause();
     }
@@ -600,6 +769,10 @@ function askHidden(question) {
     stdin.on('data', onData);
   });
 }
+
+// ============================================================
+// MAIN DEPLOY FUNCTION
+// ============================================================
 
 async function deploy(
   inputPath,
@@ -614,26 +787,44 @@ async function deploy(
     );
 
   if (!token) {
-    throw new Error('Vercel token wajib diisi.');
+    throw new Error(
+      'Vercel token wajib diisi.'
+    );
   }
 
   const abs = path.resolve(inputPath);
+
   const stat = await fs.promises.stat(abs);
 
   let files;
 
   if (stat.isDirectory()) {
+    console.log('Membaca folder website...');
+
     files = await readDirectory(abs);
+
   } else if (
     stat.isFile() &&
     /\.zip$/i.test(abs)
   ) {
+    console.log('Mengekstrak arsip ZIP...');
+
     files = await readZip(abs);
+
   } else if (stat.isFile()) {
+    if (stat.size > LIMITS.fileBytes) {
+      throw new Error(
+        'File melebihi batas 150 MiB.'
+      );
+    }
+
+    console.log('Membaca file...');
+
     files = [{
       path: path.basename(abs),
       data: await fs.promises.readFile(abs)
     }];
+
   } else {
     throw new Error(
       'Input harus berupa folder, file HTML, atau ZIP.'
@@ -644,7 +835,10 @@ async function deploy(
 
   const projectName = normalizeProjectName(
     projectInput ||
-    path.basename(abs, path.extname(abs))
+    path.basename(
+      abs,
+      path.extname(abs)
+    )
   );
 
   console.log('\nMemvalidasi token Vercel...');
@@ -661,10 +855,15 @@ async function deploy(
   );
 
   console.log(`Project: ${projectName}`);
+
   console.log(
     `File: ${summary.count} | Total: ${
-      (summary.total / 1024).toFixed(1)
-    } KiB`
+      (summary.total / MiB).toFixed(2)
+    } MiB`
+  );
+
+  console.log(
+    'Upload limit lokal: 150 MiB'
   );
 
   if (
@@ -679,7 +878,11 @@ async function deploy(
 
   const uploaded = [];
 
-  for (let i = 0; i < files.length; i++) {
+  for (
+    let i = 0;
+    i < files.length;
+    i++
+  ) {
     const file = files[i];
 
     process.stdout.write(
@@ -691,8 +894,13 @@ async function deploy(
     );
   }
 
-  console.log('\nSemua file berhasil di-upload.');
-  console.log('Membuat deployment...');
+  console.log(
+    '\nSemua file berhasil di-upload.'
+  );
+
+  console.log(
+    'Membuat deployment...'
+  );
 
   const created = await createDeployment(
     token,
@@ -701,9 +909,14 @@ async function deploy(
     !!options.production
   );
 
-  console.log(`Deployment ID: ${created.id}`);
   console.log(
-    `Status awal: ${created.readyState || 'QUEUED'}`
+    `Deployment ID: ${created.id}`
+  );
+
+  console.log(
+    `Status awal: ${
+      created.readyState || 'QUEUED'
+    }`
   );
 
   const ready = await waitForDeployment(
@@ -720,14 +933,21 @@ async function deploy(
       ? `https://${created.url}`
       : '';
 
-  console.log('\n\nDEPLOYMENT BERHASIL');
+  console.log(
+    '\n\nDEPLOYMENT BERHASIL'
+  );
 
   if (deployUrl) {
     console.log(`URL: ${deployUrl}`);
   }
 
-  console.log(`Project: ${projectName}`);
-  console.log(`ID: ${ready.id}`);
+  console.log(
+    `Project: ${projectName}`
+  );
+
+  console.log(
+    `ID: ${ready.id}`
+  );
 
   return {
     success: true,
@@ -738,6 +958,10 @@ async function deploy(
   };
 }
 
+// ============================================================
+// CLI
+// ============================================================
+
 async function main() {
   const args = process.argv.slice(2);
 
@@ -747,15 +971,36 @@ async function main() {
     args.includes('-h')
   ) {
     console.log(`
+╔══════════════════════════════════════════╗
+║       XIYU CODEX - DEPLOY HTML ZIP       ║
+╚══════════════════════════════════════════╝
+
 Usage:
   node deployhtmlzip.js <folder|file.html|file.zip> <project-name> [--production]
 
-Environment:
-  VERCEL_TOKEN      Optional Vercel token
-  VERCEL_TEAM_ID    Optional Team ID
+Upload Limits:
+  ZIP FILE        : 150 MiB
+  HTML FILE       : 150 MiB
+  INDIVIDUAL FILE : 150 MiB
+  TOTAL FILES     : 150 MiB
+  MAX FILE COUNT  : 120
 
-Example:
+Environment:
+  VERCEL_TOKEN
+  VERCEL_TEAM_ID
+
+Examples:
+  node deployhtmlzip.js ./website.zip my-website
+
+  node deployhtmlzip.js ./website my-website
+
+  node deployhtmlzip.js ./index.html my-website
+
   node deployhtmlzip.js ./website.zip my-website --production
+
+Note:
+  Batas lokal tidak menjamin Vercel API menerima
+  payload hingga 150 MiB.
 `);
 
     return;
@@ -764,22 +1009,36 @@ Example:
   const input = args[0];
 
   const project = args.find(
-    a => !a.startsWith('--') && a !== input
+    a =>
+      !a.startsWith('--') &&
+      a !== input
   );
 
-  const production = args.includes('--production');
+  const production =
+    args.includes('--production');
 
   await deploy(input, project, {
     production
   });
 }
 
+// ============================================================
+// ENTRY POINT
+// ============================================================
+
 if (require.main === module) {
   main().catch(err => {
-    console.error(`\nGAGAL: ${err.message}`);
+    console.error(
+      `\nGAGAL: ${err.message}`
+    );
+
     process.exitCode = 1;
   });
 }
+
+// ============================================================
+// EXPORTS
+// ============================================================
 
 module.exports = {
   deploy,
@@ -787,5 +1046,6 @@ module.exports = {
   cleanZipPath,
   readZip,
   readDirectory,
-  validateFiles
+  validateFiles,
+  LIMITS
 };
