@@ -1,14 +1,15 @@
 🚀 DEPLOY HTML ZIP
 
-🌐 Simple • Fast • Direct Website Deployment to Vercel
-
-<p align="center">Developed & Created by XIYU CODEX
-
-"Version" (https://img.shields.io/badge/VERSION-1.0.0-blue?style=for-the-badge)
-"Node.js" (https://img.shields.io/badge/NODE.JS-18%2B-green?style=for-the-badge)
-"Platform" (https://img.shields.io/badge/PLATFORM-VERCEL-black?style=for-the-badge)
-"License" (https://img.shields.io/badge/LICENSE-COPYRIGHT-red?style=for-the-badge)
-
+<p align="center">
+  <img src="https://img.shields.io/badge/DEPLOY-HTML%20ZIP-ff69b4?style=for-the-badge" alt="Deploy HTML ZIP">
+  <img src="https://img.shields.io/badge/VERSION-1.0.0-blue?style=for-the-badge" alt="Version 1.0.0">
+  <img src="https://img.shields.io/badge/NODE.JS-18%2B-green?style=for-the-badge" alt="Node.js 18+">
+  <img src="https://img.shields.io/badge/PLATFORM-VERCEL-black?style=for-the-badge" alt="Vercel">
+  <img src="https://img.shields.io/badge/LICENSE-COPYRIGHT-red?style=for-the-badge" alt="Copyright">
+</p><p align="center">
+  <strong>🌐 Simple • Fast • Direct Website Deployment</strong>
+  <br>
+  Developed & Created by <strong>XIYU CODEX</strong>
 </p>---
 
 📖 ABOUT PROJECT
@@ -17,11 +18,11 @@ DEPLOY HTML ZIP adalah sebuah tool deployment berbasis Node.js yang dirancang un
 
 Dengan tool ini, pengguna dapat melakukan deployment website secara langsung melalui terminal tanpa harus mengunggah file secara manual melalui dashboard Vercel.
 
-Cukup siapkan folder website, file HTML, atau arsip ZIP, kemudian jalankan perintah deployment.
+Pengguna cukup menyiapkan folder website, file HTML, atau arsip ZIP, kemudian menjalankan perintah deployment.
 
 Seluruh proses upload dan deployment dilakukan melalui Vercel REST API menggunakan Access Token milik pengguna sendiri.
 
-🎯 Project ini dibuat untuk menghadirkan pengalaman deployment yang praktis, sederhana, dan efisien.
+🎯 Project ini dibuat untuk menghadirkan pengalaman deployment yang praktis, sederhana, efisien, dan mudah digunakan.
 
 ---
 
@@ -55,13 +56,13 @@ Pastikan perangkat sudah memiliki:
 - 🌐 Koneksi internet.
 - 📚 Package "jszip".
 
-Recommended Environment:
+💻 Supported Environments
 
-- Android + Termux
-- Linux
-- Windows
-- macOS
-- VPS / Node.js Environment
+- 📱 Android + Termux
+- 🐧 Linux
+- 🪟 Windows
+- 🍎 macOS
+- ☁️ VPS / Node.js Environment
 
 ---
 
@@ -76,6 +77,10 @@ Masuk ke direktori project:
 cd REPOSITORY
 
 2️⃣ Install Dependencies
+
+npm install
+
+Atau instal dependency yang diperlukan secara langsung:
 
 npm install jszip
 
@@ -115,7 +120,7 @@ DEPLOY HTML ZIP menggunakan Vercel Access Token untuk mengakses akun Vercel peng
 Jika menggunakan akun Team:
 
 1. Buka Vercel Dashboard.
-2. Pilih Team.
+2. Pilih Team yang ingin digunakan.
 3. Masuk ke pengaturan Team.
 4. Cari bagian Team ID.
 5. Salin ID tersebut.
@@ -142,7 +147,7 @@ export VERCEL_TOKEN="YOUR_VERCEL_TOKEN"
 
 export VERCEL_TEAM_ID="team_xxxxxxxxx"
 
-Jika menggunakan akun personal, cukup gunakan VERCEL_TOKEN.
+Jika menggunakan akun personal, cukup gunakan "VERCEL_TOKEN".
 
 💡 Apabila VERCEL_TOKEN tidak diatur melalui environment variable, aplikasi akan meminta token secara langsung ketika dijalankan.
 
@@ -319,19 +324,22 @@ Technology| Purpose
 - 📚 "Vercel Documentation" (https://vercel.com/docs)
 - 🔑 "Vercel Access Tokens" (https://vercel.com/account/settings/tokens)
 - 🔌 "Vercel REST API Reference" (https://vercel.com/docs/rest-api)
+- 📦 "JSZip Documentation" (https://stuk.github.io/jszip/)
 
 ---
 
 👨‍💻 DEVELOPER
 
-<p align="center">XIYU CODEX
-
-💻 Developer & Project Creator
-
-🚀 Building practical tools and automation solutions.
-
-CREATED WITH ❤️ BY XIYU CODEX
-
+<p align="center">
+  <img src="https://img.shields.io/badge/DEVELOPER-XIYU%20CODEX-ff69b4?style=for-the-badge" alt="Developer XIYU CODEX">
+  <br><br>
+  <strong>XIYU CODEX</strong>
+  <br>
+  💻 Developer & Project Creator
+  <br>
+  🚀 Building practical tools and automation solutions.
+  <br><br>
+  <strong>CREATED WITH ❤️ BY XIYU CODEX</strong>
 </p>---
 
 ©️ COPYRIGHT & LICENSE
@@ -350,10 +358,10 @@ Penggunaan Vercel REST API dan package pihak ketiga tetap mengikuti ketentuan se
 
 ---
 
-<p align="center">🚀 DEPLOY HTML ZIP — VERSION 1.0.0
-
-DEVELOPED & CREATED BY XIYU CODEX
-
-❤️ Thank you for using this project!
-
+<p align="center">
+  <img src="https://img.shields.io/badge/DEPLOY%20HTML%20ZIP-V1.0.0-ff69b4?style=for-the-badge" alt="Deploy HTML ZIP Version 1.0.0">
+  <br><br>
+  <strong>🚀 DEVELOPED & CREATED BY XIYU CODEX</strong>
+  <br>
+  ❤️ Thank you for using this project!
 </p>
